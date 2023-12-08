@@ -11,12 +11,12 @@ type serverAPI struct {
 	ssov1.UnimplementedAuthServer
 }
 
-func RegisterServerAPI(gRPC *grpc.Server) {
+func Register(gRPC *grpc.Server) {
 	ssov1.RegisterAuthServer(gRPC, &serverAPI{})
 }
 
 func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
-	panic("implement me")
+	return &ssov1.LoginResponse{Token: "token12345"}, nil
 }
 
 func (s *serverAPI) Register(ctx context.Context, req *ssov1.RegisterRequest) (*ssov1.RegisterResponse, error) {

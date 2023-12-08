@@ -40,14 +40,14 @@ func (a *App) Run() error {
 
 	log.Info("starting gRPC server")
 
-	l, err := net.Listen("tcp", fmp.Sprintf(":%d", a.port))
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
 	if err != nil {
-		return fmp.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	log.Info("grpc server is runnig", slog.String("addr", l.Addr().String()))
 
-	if err := a.gRPCServer.Server(l); err != nil {
+	if err := a.gRPCServer.Serve(l); err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
