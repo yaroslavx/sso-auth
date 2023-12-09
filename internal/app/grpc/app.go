@@ -1,6 +1,7 @@
 package grpcapp
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -15,7 +16,13 @@ type App struct {
 	port       int
 }
 
-func New(log *slog.Logger, authService authgrpc.Auth, port int) *App {
+type Auth interface {
+	Login(ctx context.Context, email string, password string, appID int) (token string, err error)
+	RegisterNewUser(ctx context.Context, email string, password string) (userID int64, err error)
+	IsAdmin(ctx context.Context, userID int64) (bool, error)
+}
+
+func New(log *slog.Logger, authService Auth, port int) *App {
 	gRPCServer := grpc.NewServer()
 
 	authgrpc.Register(gRPCServer, authService)
