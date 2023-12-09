@@ -2,9 +2,11 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sso/internal/domain/models"
+	"sso/internal/storage"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,7 +14,7 @@ import (
 
 type Auth struct {
 	log         *slog.Logger
-	usrSave     UserSaver
+	usrSaver    UserSaver
 	usrProvider UserProvider
 	appProvider AppProvider
 	tokenTTL    time.Duration
@@ -31,6 +33,10 @@ type AppProvider interface {
 	App(ctx context.Context, appID int) (models.App, error)
 }
 
+var (
+	ErrorInvalidCredentials = errors.New("invalid credentials")
+)
+
 // New returns a new instance of the Auth service.
 func New(log *slog.Logger,
 	userSaver UserSaver,
@@ -38,7 +44,7 @@ func New(log *slog.Logger,
 	appProvider AppProvider,
 	tokenTTL time.Duration) *Auth {
 	return &Auth{
-		usrSave:     userSaver,
+		usrSaver:    userSaver,
 		usrProvider: userProvider,
 		log:         log,
 		appProvider: appProvider,
@@ -50,8 +56,38 @@ func New(log *slog.Logger,
 //
 // If user exists, but password is incorrect, returns error.
 // If user doesn't exist, returns error.
-func (a *Auth) Login(ctx context.Context, email string, pass string, appID int) (string, error) {
-	panic("not implemented")
+func (a *Auth) Login(ctx context.Context, email string, password string, appID int) (string, error) {
+	const op = "auth.Login"
+
+	log := a.log.With(slog.String("op", op))
+
+	log.Info("attempting to login user")
+
+	user, err := a.usrProvider.User(ctx, email)
+	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			a.log.Warn("user not found")
+
+			return "", fmt.Errorf("%s: %w", op, ErrorInvalidCredentials)
+		}
+
+		a.log.Error("failed to get user")
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
+		a.log.Info("invalid credentials")
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	app, err := a.appProvider.App(ctx, appID)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	log.Info("user logged in successfully")
 }
 
 // RegisterNewUser registers new user in the system and returns user ID.
@@ -70,7 +106,7 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	id, err := a.usrSave.SaveUser(ctx, email, passHash)
+	id, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
 		log.Error("failed to save user")
 
