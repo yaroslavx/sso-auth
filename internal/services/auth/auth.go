@@ -36,6 +36,8 @@ type AppProvider interface {
 
 var (
 	ErrorInvalidCredentials = errors.New("invalid credentials")
+	ErrorInvalidAppID       = errors.New("invalid app_id")
+	ErrorUserExists         = errors.New("user already exists")
 )
 
 // New returns a new instance of the Auth service.
@@ -118,6 +120,12 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email string, pass string) (
 
 	id, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
+		if errors.Is(err, storage.ErrUserExists) {
+			log.Warn("user already exists")
+
+			return 0, fmt.Errorf("%s: %w", op, ErrorUserExists)
+		}
+
 		log.Error("failed to save user")
 
 		return 0, fmt.Errorf("%s: %w", op, err)
@@ -138,6 +146,11 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 
 	isAdmin, err := a.usrProvider.IsAdmin(ctx, userID)
 	if err != nil {
+		if errors.Is(err, storage.ErrAppNotFound) {
+			log.Warn("user not found")
+
+			return false, fmt.Errorf("%s: %w", op, ErrorInvalidAppID)
+		}
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
