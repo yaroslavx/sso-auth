@@ -38,6 +38,7 @@ var (
 	ErrorInvalidCredentials = errors.New("invalid credentials")
 	ErrorInvalidAppID       = errors.New("invalid app_id")
 	ErrorUserExists         = errors.New("user already exists")
+	ErrorUserNotFound       = errors.New("user not found")
 )
 
 // New returns a new instance of the Auth service.
